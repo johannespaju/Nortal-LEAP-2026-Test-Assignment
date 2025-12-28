@@ -32,6 +32,7 @@ public class LibraryService {
     if (!canMemberBorrow(memberId)) {
       return Result.failure("BORROW_LIMIT");
     }
+    // TODO: A book on loan cannot be loaned by another member
     Book entity = book.get();
     entity.setLoanedTo(memberId);
     entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
@@ -45,9 +46,14 @@ public class LibraryService {
       return ResultWithNext.failure();
     }
 
+    // TODO: Only the current borrower must be able to return book
     Book entity = book.get();
     entity.setLoanedTo(null);
     entity.setDueDate(null);
+    // TODO: Automatically assign book to next member in queue
+    // If next member has full queue then move on to the one after that etc. until end of queue
+    // mis siis juhtub kui keegi queuest ei ole eligible, siis saab tahtja laenutada?
+    // kui on keegi kelle max_loans on täis tagastab raamatu kas ta saab siis automaatselt mone raamatu mille queues ta on?
     String nextMember =
         entity.getReservationQueue().isEmpty() ? null : entity.getReservationQueue().get(0);
     bookRepository.save(entity);
@@ -62,6 +68,7 @@ public class LibraryService {
     if (!memberRepository.existsById(memberId)) {
       return Result.failure("MEMBER_NOT_FOUND");
     }
+    // TODO: one user can only reserve the same book once
 
     Book entity = book.get();
     entity.getReservationQueue().add(memberId);
@@ -88,6 +95,7 @@ public class LibraryService {
   }
 
   public boolean canMemberBorrow(String memberId) {
+    // TODO: Refactor the current approach so the rule is obvious and not needlessly expensive.
     if (!memberRepository.existsById(memberId)) {
       return false;
     }
