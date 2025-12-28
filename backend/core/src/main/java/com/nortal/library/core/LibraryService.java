@@ -38,6 +38,7 @@ public class LibraryService {
     }
     entity.setLoanedTo(memberId);
     entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
+    cancelReservation(bookId, memberId);
     bookRepository.save(entity);
     return Result.success();
   }
@@ -48,16 +49,20 @@ public class LibraryService {
       return ResultWithNext.failure();
     }
 
-    // TODO: Only the current borrower must be able to return book
     Book entity = book.get();
+    if (!memberId.equals(entity.getLoanedTo())) {
+        return ResultWithNext.failure();
+    }
+
     entity.setLoanedTo(null);
     entity.setDueDate(null);
-    // TODO: Automatically assign book to next member in queue
-    // If next member has full queue then move on to the one after that etc. until end of queue
-    // mis siis juhtub kui keegi queuest ei ole eligible, siis saab tahtja laenutada?
-    // kui on keegi kelle max_loans on täis tagastab raamatu kas ta saab siis automaatselt mone raamatu mille queues ta on?
-    String nextMember =
-        entity.getReservationQueue().isEmpty() ? null : entity.getReservationQueue().get(0);
+    String nextMember = null;
+    for (String queuedMemberId : entity.getReservationQueue()) {
+        if (canMemberBorrow(queuedMemberId)) {
+            borrowBook(bookId, queuedMemberId);
+            break;
+          }
+      }
     bookRepository.save(entity);
     return ResultWithNext.success(nextMember);
   }
@@ -70,9 +75,18 @@ public class LibraryService {
     if (!memberRepository.existsById(memberId)) {
       return Result.failure("MEMBER_NOT_FOUND");
     }
-    // TODO: one user can only reserve the same book once
 
     Book entity = book.get();
+    if (entity.getLoanedTo() == null) {
+        borrowBook(bookId, memberId);
+        return Result.success();
+    }
+    if (entity.getReservationQueue().contains(memberId)) {
+        return Result.failure("USER_ALREADY_RESERVED");
+    }
+    if (entity.getLoanedTo().equals(memberId)) {
+        return Result.failure("BOOK_ALREADY_LOANED");
+    }
     entity.getReservationQueue().add(memberId);
     bookRepository.save(entity);
     return Result.success();
