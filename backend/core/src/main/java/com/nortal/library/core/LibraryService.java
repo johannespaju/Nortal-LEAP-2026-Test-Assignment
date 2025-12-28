@@ -60,6 +60,7 @@ public class LibraryService {
     for (String queuedMemberId : entity.getReservationQueue()) {
       if (canMemberBorrow(queuedMemberId)) {
         borrowBook(bookId, queuedMemberId);
+        nextMember = queuedMemberId;
         break;
       }
     }
@@ -78,8 +79,7 @@ public class LibraryService {
 
     Book entity = book.get();
     if (entity.getLoanedTo() == null) {
-      borrowBook(bookId, memberId);
-      return Result.success();
+      return borrowBook(bookId, memberId);
     }
     if (entity.getReservationQueue().contains(memberId)) {
       return Result.failure("USER_ALREADY_RESERVED");
@@ -140,7 +140,7 @@ public class LibraryService {
   }
 
   public Result extendLoan(String bookId, int days) {
-    if (days == 0) {
+    if (days <= 0) {
       return Result.failure("INVALID_EXTENSION");
     }
     Optional<Book> book = bookRepository.findById(bookId);
