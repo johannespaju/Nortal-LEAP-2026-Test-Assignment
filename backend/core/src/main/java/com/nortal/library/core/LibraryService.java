@@ -111,16 +111,10 @@ public class LibraryService {
   }
 
   public boolean canMemberBorrow(String memberId) {
-    // TODO: Refactor the current approach so the rule is obvious and not needlessly expensive.
     if (!memberRepository.existsById(memberId)) {
       return false;
     }
-    int active = 0;
-    for (Book book : bookRepository.findAll()) {
-      if (memberId.equals(book.getLoanedTo())) {
-        active++;
-      }
-    }
+    long active = bookRepository.countByLoanedTo(memberId);
     return active < MAX_LOANS;
   }
 
