@@ -34,7 +34,7 @@ public class LibraryService {
     }
     Book entity = book.get();
     if (entity.getLoanedTo() != null) {
-        return Result.failure("BOOK_ALREADY_LOANED");
+      return Result.failure("BOOK_ALREADY_LOANED");
     }
     entity.setLoanedTo(memberId);
     entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
@@ -51,18 +51,18 @@ public class LibraryService {
 
     Book entity = book.get();
     if (!memberId.equals(entity.getLoanedTo())) {
-        return ResultWithNext.failure();
+      return ResultWithNext.failure();
     }
 
     entity.setLoanedTo(null);
     entity.setDueDate(null);
     String nextMember = null;
     for (String queuedMemberId : entity.getReservationQueue()) {
-        if (canMemberBorrow(queuedMemberId)) {
-            borrowBook(bookId, queuedMemberId);
-            break;
-          }
+      if (canMemberBorrow(queuedMemberId)) {
+        borrowBook(bookId, queuedMemberId);
+        break;
       }
+    }
     bookRepository.save(entity);
     return ResultWithNext.success(nextMember);
   }
@@ -78,14 +78,14 @@ public class LibraryService {
 
     Book entity = book.get();
     if (entity.getLoanedTo() == null) {
-        borrowBook(bookId, memberId);
-        return Result.success();
+      borrowBook(bookId, memberId);
+      return Result.success();
     }
     if (entity.getReservationQueue().contains(memberId)) {
-        return Result.failure("USER_ALREADY_RESERVED");
+      return Result.failure("USER_ALREADY_RESERVED");
     }
     if (entity.getLoanedTo().equals(memberId)) {
-        return Result.failure("BOOK_ALREADY_LOANED");
+      return Result.failure("BOOK_ALREADY_LOANED");
     }
     entity.getReservationQueue().add(memberId);
     bookRepository.save(entity);
