@@ -250,6 +250,10 @@ public class LibraryService {
     if (id == null || name == null) {
       return Result.failure("INVALID_REQUEST");
     }
+    if (memberRepository.existsById(id)) {
+      return Result.failure("EXISTING_ID");
+    }
+
     memberRepository.save(new Member(id, name));
     return Result.success();
   }
