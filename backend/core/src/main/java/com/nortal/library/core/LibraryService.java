@@ -36,11 +36,15 @@ public class LibraryService {
     if (entity.getLoanedTo() != null) {
       return Result.failure("BOOK_ALREADY_LOANED");
     }
-    entity.setLoanedTo(memberId);
-    entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
-    cancelReservation(bookId, memberId);
+    applyLoan(entity, memberId);
     bookRepository.save(entity);
     return Result.success();
+  }
+
+  private void applyLoan(Book book, String memberId) {
+    book.setLoanedTo(memberId);
+    book.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
+    book.getReservationQueue().remove(memberId); // no errors even if member not in queue
   }
 
   public ResultWithNext returnBook(String bookId, String memberId) {
