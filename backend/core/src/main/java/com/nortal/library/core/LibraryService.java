@@ -83,6 +83,12 @@ public class LibraryService {
     }
     bookRepository.save(entity);
 
+    loanReservedBooks(memberId);
+
+    return ResultWithNext.success(nextMember);
+  }
+
+  private void loanReservedBooks(String memberId) {
     int remainingSlots = MAX_LOANS - (int) bookRepository.countByLoanedTo(memberId);
 
     for (Book otherBook : bookRepository.findAll()) {
@@ -96,8 +102,6 @@ public class LibraryService {
         remainingSlots--;
       }
     }
-
-    return ResultWithNext.success(nextMember);
   }
 
   public Result reserveBook(String bookId, String memberId) {
