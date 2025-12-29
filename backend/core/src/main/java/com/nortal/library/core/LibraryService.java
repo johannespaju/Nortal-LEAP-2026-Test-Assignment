@@ -208,6 +208,9 @@ public class LibraryService {
     if (id == null || title == null) {
       return Result.failure("INVALID_REQUEST");
     }
+    if (bookRepository.existsById(id)) {
+      return Result.failure("BOOK_ALREADY_EXISTS");
+    }
     bookRepository.save(new Book(id, title));
     return Result.success();
   }
