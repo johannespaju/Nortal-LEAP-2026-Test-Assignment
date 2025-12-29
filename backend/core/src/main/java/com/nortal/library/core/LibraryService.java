@@ -229,6 +229,13 @@ public class LibraryService {
       return Result.failure("BOOK_NOT_FOUND");
     }
     Book book = existing.get();
+    if (book.getLoanedTo() != null) {
+      return Result.failure("BOOK_CURRENTLY_LOANED");
+    }
+    if (!book.getReservationQueue().isEmpty()) {
+      book.getReservationQueue().clear();
+      bookRepository.save(book);
+    }
     bookRepository.delete(book);
     return Result.success();
   }
