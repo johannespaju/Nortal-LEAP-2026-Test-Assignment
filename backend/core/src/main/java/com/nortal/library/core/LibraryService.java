@@ -56,15 +56,20 @@ public class LibraryService {
 
     entity.setLoanedTo(null);
     entity.setDueDate(null);
+    bookRepository.save(entity);
+
     String nextMember = null;
-    for (String queuedMemberId : entity.getReservationQueue()) {
+    List<String> queueCopy = new ArrayList<>(entity.getReservationQueue());
+
+    for (String queuedMemberId : queueCopy) {
       if (canMemberBorrow(queuedMemberId)) {
-        borrowBook(bookId, queuedMemberId);
-        nextMember = queuedMemberId;
-        break;
+        Result result = borrowBook(bookId, queuedMemberId);
+        if (result.ok()) {
+          nextMember = queuedMemberId;
+          break;
+        }
       }
     }
-    bookRepository.save(entity);
     return ResultWithNext.success(nextMember);
   }
 
@@ -140,7 +145,7 @@ public class LibraryService {
   }
 
   public Result extendLoan(String bookId, int days) {
-    if (days <= 0) {
+    if (days == 0) {
       return Result.failure("INVALID_EXTENSION");
     }
     Optional<Book> book = bookRepository.findById(bookId);
