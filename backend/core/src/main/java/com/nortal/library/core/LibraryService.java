@@ -124,8 +124,7 @@ public class LibraryService {
     if (!memberRepository.existsById(memberId)) {
       return false;
     }
-    long active = bookRepository.countByLoanedTo(memberId);
-    return active < MAX_LOANS;
+    return bookRepository.countByLoanedTo(memberId) < MAX_LOANS;
   }
 
   public List<Book> searchBooks(String titleContains, Boolean availableOnly, String loanedTo) {
@@ -161,6 +160,10 @@ public class LibraryService {
     if (entity.getLoanedTo() == null) {
       return Result.failure("NOT_LOANED");
     }
+    if (!entity.getReservationQueue().isEmpty()) {
+      return Result.failure("RESERVATIONS_EXIST");
+    }
+
     LocalDate baseDate =
         entity.getDueDate() == null
             ? LocalDate.now().plusDays(DEFAULT_LOAN_DAYS)
