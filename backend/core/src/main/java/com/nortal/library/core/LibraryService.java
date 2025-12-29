@@ -22,6 +22,7 @@ public class LibraryService {
   }
 
   public Result borrowBook(String bookId, String memberId) {
+    // Allows line-jumping when the current member(s) in queue have more loans than max loans
     Optional<Book> book = bookRepository.findById(bookId);
     if (book.isEmpty()) {
       return Result.failure("BOOK_NOT_FOUND");
@@ -29,7 +30,7 @@ public class LibraryService {
     if (!memberRepository.existsById(memberId)) {
       return Result.failure("MEMBER_NOT_FOUND");
     }
-    if (!canMemberBorrow(memberId)) {
+    if (!canMemberBorrowUnchecked(memberId)) {
       return Result.failure("BORROW_LIMIT");
     }
     Book entity = book.get();
@@ -44,10 +45,17 @@ public class LibraryService {
   private void applyLoan(Book book, String memberId) {
     book.setLoanedTo(memberId);
     book.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
-    book.getReservationQueue().remove(memberId); // no errors even if member not in queue
+    book.getReservationQueue().remove(memberId);
   }
 
   public ResultWithNext returnBook(String bookId, String memberId) {
+    /*
+     Design decision: When member returns book that they fall under max loans with AND they're first in queue
+     for several unborrowed books. Which one should it borrow?
+
+     For now, I decided that there is no inherent order (just whatever comes first in bookRepository.findAll)
+     and in practice ends up borrowing the book that was reserved latest.
+    */
     Optional<Book> book = bookRepository.findById(bookId);
     if (book.isEmpty()) {
       return ResultWithNext.failure();
@@ -73,8 +81,22 @@ public class LibraryService {
         break;
       }
     }
-
     bookRepository.save(entity);
+
+    int remainingSlots = MAX_LOANS - (int) bookRepository.countByLoanedTo(memberId);
+
+    for (Book otherBook : bookRepository.findAll()) {
+      if (remainingSlots <= 0) break;
+
+      // Member doesn't have to be first if members before them are not eligible to borrow
+      // Otherwise books could get indefinitely locked with a user that has max borrows
+      if (otherBook.getLoanedTo() == null && otherBook.getReservationQueue().contains(memberId)) {
+        applyLoan(otherBook, memberId);
+        bookRepository.save(otherBook);
+        remainingSlots--;
+      }
+    }
+
     return ResultWithNext.success(nextMember);
   }
 
@@ -94,7 +116,7 @@ public class LibraryService {
     if (entity.getReservationQueue().contains(memberId)) {
       return Result.failure("USER_ALREADY_RESERVED");
     }
-    if (entity.getLoanedTo() == null && canMemberBorrow(memberId)) {
+    if (entity.getLoanedTo() == null && canMemberBorrowUnchecked(memberId)) {
       return borrowBook(bookId, memberId);
     }
     entity.getReservationQueue().add(memberId);
@@ -124,6 +146,11 @@ public class LibraryService {
     if (!memberRepository.existsById(memberId)) {
       return false;
     }
+    return bookRepository.countByLoanedTo(memberId) < MAX_LOANS;
+  }
+
+  // Assumes member existence already verified
+  private boolean canMemberBorrowUnchecked(String memberId) {
     return bookRepository.countByLoanedTo(memberId) < MAX_LOANS;
   }
 
@@ -237,10 +264,6 @@ public class LibraryService {
     Book book = existing.get();
     if (book.getLoanedTo() != null) {
       return Result.failure("BOOK_CURRENTLY_LOANED");
-    }
-    if (!book.getReservationQueue().isEmpty()) {
-      book.getReservationQueue().clear();
-      bookRepository.save(book);
     }
     bookRepository.delete(book);
     return Result.success();
