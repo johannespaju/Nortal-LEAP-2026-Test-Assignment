@@ -267,6 +267,18 @@ public class LibraryService {
     if (existing.isEmpty()) {
       return Result.failure("MEMBER_NOT_FOUND");
     }
+    long activeLoans = bookRepository.countByLoanedTo(id);
+    if (activeLoans > 0) {
+      return Result.failure("MEMBER_HAS_ACTIVE_LOANS");
+    }
+
+    // could probably make this quicker
+    List<Book> allBooks = bookRepository.findAll();
+    for (Book book : allBooks) {
+      if (book.getReservationQueue().remove(id)) {
+        bookRepository.save(book);
+      }
+    }
     memberRepository.delete(existing.get());
     return Result.success();
   }
