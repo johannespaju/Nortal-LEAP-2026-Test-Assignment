@@ -69,23 +69,26 @@ public class LibraryService {
     entity.setLoanedTo(null);
     entity.setDueDate(null);
 
-    String nextMember = null;
-    List<String> queueCopy = new ArrayList<>(entity.getReservationQueue());
-
-    for (String queuedMemberId : queueCopy) {
-      if (canMemberBorrow(queuedMemberId)) {
-        entity.setLoanedTo(queuedMemberId);
-        entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
-        entity.getReservationQueue().remove(queuedMemberId);
-        nextMember = queuedMemberId;
-        break;
-      }
-    }
+    String nextMember = advanceQueueAndLoan(entity);
     bookRepository.save(entity);
 
     loanReservedBooks(memberId);
 
     return ResultWithNext.success(nextMember);
+  }
+
+  private String advanceQueueAndLoan(Book entity) {
+    String nextMember = null;
+    List<String> queueCopy = new ArrayList<>(entity.getReservationQueue());
+
+    for (String queuedMemberId : queueCopy) {
+      if (canMemberBorrow(queuedMemberId)) {
+        applyLoan(entity, queuedMemberId);
+        nextMember = queuedMemberId;
+        break;
+      }
+    }
+    return nextMember;
   }
 
   private void loanReservedBooks(String memberId) {
